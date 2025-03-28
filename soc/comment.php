@@ -1,6 +1,7 @@
 <?php
 session_start();
 require 'includes/db.php';
+require 'nav.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
