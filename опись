@@ -1,0 +1,287 @@
+mkdir cross_recsys && cd cross_recsys
+
+# зависимости
+python -m venv venv
+source venv/bin/activate
+
+pip install fastapi uvicorn sentence-transformers lightfm python-dotenv
+
+
+
+
+
+# server.py
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+from lightfm import LightFM
+import sqlite3
+import numpy as np
+from typing import List, Dict
+import json
+
+app = FastAPI()
+
+# загрузка моделей
+embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+recommender = LightFM(loss='warp')
+
+# бд
+conn = sqlite3.connect('recommendations.db')
+cursor = conn.cursor()
+
+# создание таблицы в бд
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS user_actions (
+    user_id TEXT,
+    platform TEXT,
+    item_id TEXT,
+    item_content TEXT,
+    action_type TEXT,
+    timestamp INTEGER,
+    UNIQUE(user_id, platform, item_id, action_type)
+)
+''')
+conn.commit()
+
+class UserAction(BaseModel):
+    user_id: str
+    platform: str  # tg или vk
+    item_id: str
+    item_content: str = None
+    action_type: str  # view, like, share
+
+class RecommendationRequest(BaseModel):
+    user_id: str
+    platform: str
+    limit: int = 5
+
+@app.post("/log_action")
+async def log_action(action: UserAction):
+    """Логируем действия пользователя"""
+    cursor.execute('''
+    INSERT OR IGNORE INTO user_actions 
+    VALUES (?, ?, ?, ?, ?, strftime('%s','now'))
+    ''', (action.user_id, action.platform, action.item_id, 
+          action.item_content, action.action_type))
+    conn.commit()
+    return {"status": "ok"}
+
+@app.post("/get_recommendations")
+async def get_recommendations(request: RecommendationRequest):
+    """Получаем рекомендации для пользователя"""
+    # 1. получаем историю действий юзера
+    cursor.execute('''
+    SELECT item_id, item_content FROM user_actions 
+    WHERE user_id = ? AND platform = ? AND action_type = 'like'
+    ORDER BY timestamp DESC LIMIT 10
+    ''', (request.user_id, request.platform))
+    liked_items = cursor.fetchall()
+
+    if not liked_items:
+        return []
+
+    # 2. получаем эмбеддинги понравившегося контента
+    liked_contents = [item[1] for item in liked_items if item[1]]
+    if not liked_contents:
+        return []
+
+    # 3. чекаем средний эмбеддинг предпочтений пользователя
+    embeddings = embedding_model.encode(liked_contents)
+    user_embedding = np.mean(embeddings, axis=0)
+
+    # 4. ищем похожий контент в базе
+    all_items = cursor.execute('''
+    SELECT DISTINCT item_id, item_content FROM user_actions 
+    WHERE platform = ? AND item_content IS NOT NULL
+    ''', (request.platform,)).fetchall()
+
+    # 5. чекаем по схожести с предпочтениями пользователя
+    recommendations = []
+    for item_id, content in all_items:
+        if content:
+            item_embedding = embedding_model.encode([content])[0]
+            similarity = np.dot(user_embedding, item_embedding) / (
+                np.linalg.norm(user_embedding) * np.linalg.norm(item_embedding)
+            )
+            recommendations.append({
+                "item_id": item_id,
+                "content": content,
+                "score": float(similarity)
+            })
+
+    # 6. Сортируем и возвращаем рекомендаций
+    recommendations.sort(key=lambda x: x['score'], reverse=True)
+    return recommendations[:request.limit]
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+# tg_bot.py
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+import requests
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+API_URL = "http://localhost:8000"
+
+async def start(update: Update, context):
+    keyboard = [[InlineKeyboardButton("Рекомендации", callback_data='get_recs')]]
+    await update.message.reply_text(
+        "Сао! Присылай мне ссылки на посты или видео, которые тебе нравятся, "
+        "а я буду рекомендовать похожий контент тут и в вк, бро.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def handle_message(update: Update, context):
+    user_id = str(update.message.from_user.id)
+    text = update.message.text
+    
+    requests.post(f"{API_URL}/log_action", json={
+        "user_id": user_id,
+        "platform": "tg",
+        "item_id": f"msg_{update.message.message_id}",
+        "item_content": text,
+        "action_type": "like"
+    })
+    
+    await update.message.reply_text("Окей, обновил память! Нажми кнопку для рекомендаций.")
+
+async def button_handler(update: Update, context):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = str(query.from_user.id)
+    response = requests.post(
+        f"{API_URL}/get_recommendations",
+        json={"user_id": user_id, "platform": "tg", "limit": 3}
+    ).json()
+    
+    if not response:
+        await query.edit_message_text("Извини пока нет рекомендаций. Присылай больше контента, чтобы я понял твои предпочтения!")
+        return
+    
+    message = "Вот что тебе может понравиться:\n\n" + "\n".join(
+        f"{i+1}. {item['content'][:100]}..." for i, item in enumerate(response)
+    )
+    
+    await query.edit_message_text(message)
+
+def main():
+    app = Application.builder().token("TELEGRAM_TOKEN").build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+# vk_app.js
+
+const API_URL = "http://localhost:8000";
+
+vkBridge.send('VKWebAppInit')
+    .then(() => vkBridge.send('VKWebAppGetUserInfo'))
+    .then(user => {
+        const userId = `vk_${user.id}`;
+        
+        // Рендерим интерфейс
+        document.getElementById('app').innerHTML = `
+            <div class="container">
+                <h1>Мои рекомендации</h1>
+                <textarea id="contentInput" placeholder="Опиши что тебе нравится"></textarea>
+                <button id="likeBtn">Мне нравится</button>
+                <button id="getRecsBtn">Получить рекомендации</button>
+                <div id="recommendations"></div>
+            </div>
+        `;
+        
+        // Обработчики событий
+        document.getElementById('likeBtn').addEventListener('click', () => {
+            const content = document.getElementById('contentInput').value;
+            if (content) {
+                fetch(`${API_URL}/log_action`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        platform: 'vk',
+                        item_id: `user_input_${Date.now()}`,
+                        item_content: content,
+                        action_type: 'like'
+                    })
+                }).then(() => alert('Окей, обновил память!'));
+            }
+        });
+        
+        document.getElementById('getRecsBtn').addEventListener('click', () => {
+            fetch(`${API_URL}/get_recommendations`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: userId,
+                    platform: 'vk',
+                    limit: 3
+                })
+            })
+            .then(res => res.json())
+            .then(recs => {
+                const container = document.getElementById('recommendations');
+                if (recs.length === 0) {
+                    container.innerHTML = '<p>Извини пока нет рекомендаций. Присылай больше контента, чтобы я понял твои предпочтения!</p>';
+                } else {
+                    container.innerHTML = '<h2>Тебе может понравиться:</h2><ul>' + 
+                        recs.map(item => `<li>${item.content}</li>`).join('') + '</ul>';
+                }
+            });
+        });
+    });
+
+
+
+запуск системы
+сервер:
+python server.py
+
+тг бот:
+python tg_bot.py
+
+
+
+Как это работает
+
+    Telegram:
+
+        Пользователь отправляет боту сообщение с контентом (например, описание видео)
+        Бот сохраняет это как "лайк"
+        По запросу выдает рекомендации
+
+    VK:
+
+        Пользователь вводит текст о том, что ему нравится
+        Нажимает "Мне нравится" для сохранения
+        Получает рекомендации на основе введенных данных и истории из Telegram
+
+    Общая логика:
+
+        Все данные хранятся в единой базе
+        Нейросеть анализирует текстовые описания
+        Рекомендации учитывают предпочтения со всех платформ
+
+
+
+
+        

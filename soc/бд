@@ -1,0 +1,45 @@
+-- Таблица пользователей
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL, -- Имя пользователя
+    email VARCHAR(100) NOT NULL UNIQUE, -- Почта
+    password VARCHAR(255) NOT NULL, -- Пароль (хешированный)
+    first_name VARCHAR(50), -- Имя
+    last_name VARCHAR(50), -- Фамилия
+    city VARCHAR(100), -- Город
+    avatar VARCHAR(255), -- Ссылка на аватар
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Дата регистрации
+);
+
+-- Таблица постов
+CREATE TABLE posts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL, -- ID пользователя, который создал пост
+    content TEXT, -- Текст поста
+    image VARCHAR(255), -- Ссылка на изображение
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Дата создания поста
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Таблица комментариев
+CREATE TABLE comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL, -- ID поста
+    user_id INT NOT NULL, -- ID пользователя, который оставил комментарий
+    content TEXT, -- Текст комментария
+    image VARCHAR(255), -- Ссылка на изображение
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Дата создания комментария
+    FOREIGN KEY (post_id) REFERENCES posts(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Таблица лайков/дизлайков
+CREATE TABLE likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL, -- ID поста
+    user_id INT NOT NULL, -- ID пользователя, который поставил лайк/дизлайк
+    type ENUM('like', 'dislike') NOT NULL, -- Тип: лайк или дизлайк
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Дата действия
+    FOREIGN KEY (post_id) REFERENCES posts(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
