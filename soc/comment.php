@@ -18,7 +18,7 @@ $stmt = $pdo->prepare("
     SELECT comments.*, users.username, users.avatar 
     FROM comments 
     JOIN users ON comments.user_id = users.id 
-    WHERE comments.post_id = ?
+    WHERE comments.post_id = ? AND comments.parent_id IS NULL
     ORDER BY comments.created_at ASC
 ");
 $stmt->execute([$post_id]);
@@ -27,6 +27,7 @@ $comments = $stmt->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $content = $_POST['content'];
     $image = '';
+    $parent_id = $_POST['parent_id'] ?? null;
 
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
         $uploadDir = 'uploads/';
@@ -38,8 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, content, image) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$post_id, $_SESSION['user_id'], $content, $image]);
+    $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, content, image, parent_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$post_id, $_SESSION['user_id'], $content, $image, $parent_id]);
 
     header("Location: comment.php?post_id=$post_id");
     exit;
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <form method="POST" enctype="multipart/form-data" class="mb-4">
         <div class="mb-3">
             <label for="content" class="form-label">Текст комментария</label>
-            <textarea class="form-control" id="content" name="content" rows="4"></textarea>
+            <textarea class="form-control" id="content" name="content" rows="4" required></textarea>
         </div>
         <div class="mb-3">
             <label for="image" class="form-label">Фото</label>
@@ -82,9 +83,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php if ($comment['image']): ?>
                     <img src="<?= $comment['image'] ?>" alt="Фото комментария" class="img-fluid">
                 <?php endif; ?>
+                <a href="#reply-form" class="btn btn-sm btn-outline-primary reply-btn" data-comment-id="<?= $comment['id'] ?>">Ответить</a>
             </div>
         </div>
+
+        <?php
+        $stmt = $pdo->prepare("
+            SELECT comments.*, users.username, users.avatar 
+            FROM comments 
+            JOIN users ON comments.user_id = users.id 
+            WHERE comments.parent_id = ?
+            ORDER BY comments.created_at ASC
+        ");
+        $stmt->execute([$comment['id']]);
+        $replies = $stmt->fetchAll();
+        ?>
+        <?php foreach ($replies as $reply): ?>
+            <div class="card mb-3 ms-5">
+                <div class="card-header">
+                    <img src="<?= $reply['avatar'] ?>" alt="Аватар" width="40" class="rounded-circle me-2">
+                    <?= htmlspecialchars($reply['username']) ?>
+                </div>
+                <div class="card-body">
+                    <p><?= nl2br(htmlspecialchars($reply['content'])) ?></p>
+                    <?php if ($reply['image']): ?>
+                        <img src="<?= $reply['image'] ?>" alt="Фото комментария" class="img-fluid">
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
     <?php endforeach; ?>
+
+    <form id="reply-form" method="POST" enctype="multipart/form-data" class="mt-4 d-none">
+        <input type="hidden" name="parent_id" id="parent_id">
+        <div class="mb-3">
+            <label for="reply-content" class="form-label">Текст ответа</label>
+            <textarea class="form-control" id="reply-content" name="content" rows="4" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="reply-image" class="form-label">Фото</label>
+            <input type="file" class="form-control" id="reply-image" name="image">
+        </div>
+        <button type="submit" class="btn btn-primary">Отправить ответ</button>
+    </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const replyForm = document.getElementById('reply-form');
+    const replyParentId = document.getElementById('parent_id');
+
+    document.querySelectorAll('.reply-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const commentId = this.getAttribute('data-comment-id');
+            replyParentId.value = commentId;
+            replyForm.classList.remove('d-none');
+        });
+    });
+});
+</script>
 </body>
 </html>

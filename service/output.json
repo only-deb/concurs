@@ -1,0 +1,74 @@
+[
+    {
+        "name": "Генадий Фторов",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Вкусно и точка",
+        "likes_count": 1.0,
+        "dislikes_count": 1.0,
+        "profile_url": "http://social_network2.online/user_profile.php?user_id=1"
+    },
+    {
+        "name": "Генадий Фторов",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Вкусно и точка",
+        "likes_count": 1.0,
+        "dislikes_count": 1.0,
+        "profile_url": "http://social_network1.online/user_profile.php?user_id=1"
+    },
+    {
+        "name": "Генадий Генадий",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Вкусно и точка2",
+        "likes_count": 0,
+        "dislikes_count": 0,
+        "profile_url": "http://social_network2.online/user_profile.php?user_id=5"
+    },
+    {
+        "name": "Генадий Генадий",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Вкусно и точка2",
+        "likes_count": 0,
+        "dislikes_count": 0,
+        "profile_url": "http://social_network1.online/user_profile.php?user_id=5"
+    },
+    {
+        "name": "Аркадий Никитин",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Ростикс",
+        "likes_count": 0,
+        "dislikes_count": 1.0,
+        "profile_url": "http://social_network2.online/user_profile.php?user_id=3"
+    },
+    {
+        "name": "Аркадий Никитин",
+        "city": "Краснодар",
+        "activity": "ресторанный бизнес",
+        "company": "Ростикс",
+        "likes_count": 0,
+        "dislikes_count": 1.0,
+        "profile_url": "http://social_network1.online/user_profile.php?user_id=3"
+    },
+    {
+        "name": "Генадий Привте",
+        "city": "Краснодар",
+        "activity": "Обувной",
+        "company": "Моя обувь",
+        "likes_count": 0,
+        "dislikes_count": 0,
+        "profile_url": "http://social_network2.online/user_profile.php?user_id=6"
+    },
+    {
+        "name": "Генадий Привте",
+        "city": "Краснодар",
+        "activity": "Обувной",
+        "company": "Моя обувь",
+        "likes_count": 0,
+        "dislikes_count": 0,
+        "profile_url": "http://social_network1.online/user_profile.php?user_id=6"
+    }
+]
