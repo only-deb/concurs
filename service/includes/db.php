@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$dbname = 'test3_onlyde';
+$dbname = 'test1_onlyde';
 $username = 'onlydeb';
 $password = '21ufeguz';
 

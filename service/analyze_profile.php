@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+// Функция для определения социальной сети
 function get_social_network($url) {
     if (strpos($url, 'test1.onlydeb.online') !== false) {
         return 'test1.onlydeb';
@@ -13,6 +14,7 @@ function get_social_network($url) {
     }
 }
 
+// Функция для извлечения user_id из URL
 function extract_user_id($url) {
     $parsed_url = parse_url($url);
     if (isset($parsed_url['query'])) {
@@ -24,6 +26,7 @@ function extract_user_id($url) {
     return null;
 }
 
+// Обработка отправки формы
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $profile_url = $_POST['profile_url'];
     $social_network = get_social_network($profile_url);
@@ -36,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($user_id <= 0) {
             $error = "Некорректный ID пользователя.";
         } else {
+            // Отправка запроса к Flask API
             $api_url = 'http://localhost:5000/analyze';
             $data = [
                 'social_network' => $social_network,
@@ -71,7 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Анализ профиля</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Vis.js для визуализации связей -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {
@@ -147,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <?php if (isset($results)): ?>
         <h3 class="text-center mb-4">Результаты анализа</h3>
 
+        <!-- Визуализация первого контура -->
         <div class="card">
             <div class="card-header">Первый контур: Сканирование баз данных</div>
             <div class="card-body">
@@ -160,11 +167,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
 
+        <!-- Визуализация второго контура -->
         <div class="card">
             <div class="card-header">Второй контур: Анализ бизнеса</div>
             <div class="card-body">
                 <div id="network"></div>
                 <script type="text/javascript">
+                    // Создание графа связей
                     var nodes = new vis.DataSet([
                         {id: 1, label: 'Целевой бизнес', group: 'target'},
                         <?php foreach ($results['business_results'] as $index => $company): ?>
@@ -218,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
 
+        <!-- Карточки конкурентов -->
         <h3 class="text-center mb-4">Карточки конкурентов</h3>
         <div class="row">
             <?php foreach ($results['business_results'] as $company): ?>
@@ -254,6 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <?php endif; ?>
 </div>
 
+<!-- Bootstrap JS and Popper.js -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

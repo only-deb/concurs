@@ -12,11 +12,13 @@ from decimal import Decimal
 
 app = Flask(__name__)
 
+# Загрузка стоп-слов и VADER для анализа тональности
 nltk.download('stopwords')
 nltk.download('vader_lexicon')
 stop_words = set(stopwords.words('russian'))
 sia = SentimentIntensityAnalyzer()
 
+# Конфигурации для всех баз данных
 db_configs = {
     "test1.onlydeb": {
         "host": "localhost",
@@ -38,6 +40,7 @@ db_configs = {
     }
 }
 
+# Подключение к базам данных
 def connect_to_db(host, user, password, database):
     return mysql.connector.connect(
         host=host,
@@ -46,6 +49,7 @@ def connect_to_db(host, user, password, database):
         database=database
     )
 
+# Первый контур: Сканирование баз данных
 def scan_social_networks():
     all_companies = set()
     mentions = {"positive": 0, "neutral": 0, "negative": 0}
@@ -55,10 +59,12 @@ def scan_social_networks():
         db = connect_to_db(**config)
         cursor = db.cursor(dictionary=True)
 
+        # Получаем все компании из базы данных
         cursor.execute("SELECT DISTINCT company FROM users")
         companies = [row['company'] for row in cursor.fetchall() if row['company']]
         all_companies.update(companies)
 
+        # Сканируем посты на наличие упоминаний компаний
         cursor.execute("""
             SELECT posts.content, users.company
             FROM posts
@@ -86,6 +92,7 @@ def scan_social_networks():
         "mentions": mentions
     }
 
+# Второй контур: Анализ бизнеса и поиск конкурентов
 def analyze_business(social_network, user_id):
     db_config = db_configs.get(social_network)
     if not db_config:
@@ -94,6 +101,7 @@ def analyze_business(social_network, user_id):
     db = connect_to_db(**db_config)
     cursor = db.cursor(dictionary=True)
 
+    # Получаем профиль пользователя
     cursor.execute("""
         SELECT 
             GROUP_CONCAT(posts.content SEPARATOR ' ') AS content,
@@ -112,6 +120,7 @@ def analyze_business(social_network, user_id):
         profile['company'] or ""
     ])
 
+    # Получаем всех пользователей из обеих соцсетей
     all_profiles = []
     for sn, config in db_configs.items():
         other_db = connect_to_db(**config)
@@ -156,6 +165,7 @@ def analyze_business(social_network, user_id):
     sorted_indices = similarities.argsort()[::-1]
     competitors = [all_profiles[i] for i in sorted_indices[:5]]
 
+    # Группировка по компаниям
     grouped_companies = {}
     for competitor in competitors:
         company = competitor['company']
@@ -177,6 +187,7 @@ def analyze_business(social_network, user_id):
         grouped_companies[company]['total_dislikes'] += competitor['dislikes_count'] or 0
         grouped_companies[company]['total_posts'] += competitor['post_count'] or 0
 
+        # Анализ тональности комментариев
         comments_text = competitor['comments_text'] or ""
         comment_list = comments_text.split('|')
         sentiment_scores = {"positive": 0, "neutral": 0, "negative": 0}
@@ -221,8 +232,10 @@ def analyze():
     except ValueError:
         return jsonify({"error": "Некорректный user_id"}), 400
 
+    # Первый контур: Сканирование баз данных
     scan_results = scan_social_networks()
 
+    # Второй контур: Анализ бизнеса
     business_results = analyze_business(social_network, user_id)
 
     return jsonify({

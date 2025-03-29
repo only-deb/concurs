@@ -17,15 +17,18 @@ def generate_city():
     cities = ["Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань"]
     return random.choice(cities)
 
+# Генерация логина
 def generate_username():
     words = ["user", "admin", "guest", "test", "new", "super", "mega", "pro"]
     numbers = random.randint(100, 999)
     return f"{random.choice(words)}{numbers}"
 
+# Генерация пароля
 def generate_password():
     passwords = ["securepassword123", "mypassword", "qwerty123", "password1234", "letmein"]
     return random.choice(passwords)
 
+# Проверка уникальности email
 def is_email_unique(email):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -36,12 +39,14 @@ def is_email_unique(email):
     conn.close()
     return count == 0
 
+# Генерация уникального email
 def generate_unique_email(username):
     while True:
         email = f"{username}_{uuid.uuid4().hex[:6]}@example.com"
         if is_email_unique(email):
             return email
 
+# Проверка уникальности username
 def is_username_unique(username):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -52,6 +57,7 @@ def is_username_unique(username):
     conn.close()
     return count == 0
 
+# Добавление пользователя в базу данных
 def add_user_to_db(username, email, password, first_name, last_name, city):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -61,7 +67,8 @@ def add_user_to_db(username, email, password, first_name, last_name, city):
     cursor.close()
     conn.close()
 
-for _ in range(50):
+# Генерация и добавление пользователей
+for _ in range(50):  # Генерация 50 пользователей
     while True:
         username = generate_username()
         if is_username_unique(username):

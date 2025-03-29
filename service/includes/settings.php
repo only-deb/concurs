@@ -1,5 +1,5 @@
 <?php
 return [
-    'site_name' => 'Соц сеть 2',
+    'site_name' => 'Соц сеть 1',
 ];
 ?>

@@ -10,10 +10,12 @@ if (!isset($_SESSION['user_id'])) {
 
 $post_id = $_GET['post_id'];
 
+// Получение поста
 $stmt = $pdo->prepare("SELECT * FROM posts WHERE id = ?");
 $stmt->execute([$post_id]);
 $post = $stmt->fetch();
 
+// Получение всех комментариев к посту
 $stmt = $pdo->prepare("
     SELECT comments.*, users.username, users.avatar 
     FROM comments 
@@ -29,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $image = '';
     $parent_id = $_POST['parent_id'] ?? null;
 
+    // Обработка загрузки изображения
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
         $uploadDir = 'uploads/';
         $imageName = uniqid() . '_' . basename($_FILES['image']['name']);
@@ -39,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
+    // Добавление комментария в базу данных
     $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, content, image, parent_id) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute([$post_id, $_SESSION['user_id'], $content, $image, $parent_id]);
 
@@ -59,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="container mt-5">
     <h2>Пост: <?= htmlspecialchars($post['content']) ?></h2>
 
+    <!-- Форма для добавления комментария -->
     <form method="POST" enctype="multipart/form-data" class="mb-4">
         <div class="mb-3">
             <label for="content" class="form-label">Текст комментария</label>
@@ -71,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <button type="submit" class="btn btn-primary">Отправить</button>
     </form>
 
+    <!-- Список комментариев -->
     <h3>Комментарии:</h3>
     <?php foreach ($comments as $comment): ?>
         <div class="card mb-3">
@@ -83,10 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php if ($comment['image']): ?>
                     <img src="<?= $comment['image'] ?>" alt="Фото комментария" class="img-fluid">
                 <?php endif; ?>
+                <!-- Кнопка "Ответить" -->
                 <a href="#reply-form" class="btn btn-sm btn-outline-primary reply-btn" data-comment-id="<?= $comment['id'] ?>">Ответить</a>
             </div>
         </div>
 
+        <!-- Вложенные комментарии -->
         <?php
         $stmt = $pdo->prepare("
             SELECT comments.*, users.username, users.avatar 
@@ -114,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php endforeach; ?>
     <?php endforeach; ?>
 
+    <!-- Форма для ответа -->
     <form id="reply-form" method="POST" enctype="multipart/form-data" class="mt-4 d-none">
         <input type="hidden" name="parent_id" id="parent_id">
         <div class="mb-3">
@@ -133,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const replyForm = document.getElementById('reply-form');
     const replyParentId = document.getElementById('parent_id');
 
+    // Обработка клика на кнопку "Ответить"
     document.querySelectorAll('.reply-btn').forEach(button => {
         button.addEventListener('click', function () {
             const commentId = this.getAttribute('data-comment-id');

@@ -3,6 +3,7 @@ session_start();
 require 'includes/db.php';
 require 'nav.php';
 
+// Получение ID пользователя из GET-параметра
 $user_id = $_GET['user_id'] ?? null;
 
 if (!$user_id) {
@@ -10,6 +11,7 @@ if (!$user_id) {
     exit;
 }
 
+// Получение информации о пользователе
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
@@ -18,6 +20,7 @@ if (!$user) {
     die("Пользователь не найден.");
 }
 
+// Получение постов пользователя
 $stmt = $pdo->prepare("
     SELECT 
         posts.*, 
@@ -44,6 +47,7 @@ $posts = $stmt->fetchAll();
 <div class="container mt-5">
     <h2>Профиль пользователя</h2>
 
+    <!-- Информация о пользователе -->
     <div class="card mb-4">
         <div class="card-body">
             <div class="d-flex align-items-center">
@@ -58,6 +62,7 @@ $posts = $stmt->fetchAll();
         </div>
     </div>
 
+    <!-- Посты пользователя -->
     <h3>Посты пользователя</h3>
     <?php if (empty($posts)): ?>
         <p>У пользователя пока нет постов.</p>

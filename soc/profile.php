@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
+// Получение текущих данных пользователя
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
@@ -22,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $company = $_POST['company'];
     $avatar = $user['avatar'];
 
+    // Обработка загрузки аватара
     if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] == 0) {
         $uploadDir = 'uploads/';
         $avatarName = uniqid() . '_' . basename($_FILES['avatar']['name']);
@@ -32,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
+    // Обновление данных пользователя
     $stmt = $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, city = ?, activity = ?, company = ?, avatar = ? WHERE id = ?");
     $stmt->execute([$first_name, $last_name, $city, $activity, $company, $avatar, $user_id]);
 

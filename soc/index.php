@@ -18,6 +18,7 @@ $stmt = $pdo->query("
 ");
 $posts = $stmt->fetchAll();
 
+// Получение рекомендаций для текущего пользователя
 $user_id = $_SESSION['user_id'] ?? null;
 $recommended_posts = [];
 if ($user_id) {
@@ -50,6 +51,7 @@ if ($user_id) {
     <div class="container mt-5">
         <h2>Лента постов</h2>
 
+        <!-- Рекомендации -->
         <?php if (!empty($recommended_posts)): ?>
             <div class="card mb-4">
                 <div class="card-header">Рекомендуемые посты</div>
